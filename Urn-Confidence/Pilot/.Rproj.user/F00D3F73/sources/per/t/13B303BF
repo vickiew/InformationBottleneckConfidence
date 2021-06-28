@@ -1,0 +1,24 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1618351120733.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1850051050",
+    "id" : "13B303BF",
+    "lastKnownWriteTime" : 1618351215,
+    "last_content_update" : 1618351215,
+    "path" : "~/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/Pilot/Data_Munge.Rmd",
+    "project_path" : "Data_Munge.Rmd",
+    "properties" : {
+        "chunk_output_type" : "console",
+        "cursorPosition" : "54,32",
+        "scrollLine" : "32",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

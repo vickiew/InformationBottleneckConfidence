@@ -1,0 +1,49 @@
+---
+title: "Urn Confidence Pilot Data Munging"
+author: "Vickie"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = 'center', fig.width = 10, fig.height = 7)
+```
+
+```{r, include = FALSE}
+# Import libraries
+library(readxl)
+library(useful)
+library(taigr)
+library(magrittr)
+library(tidyverse)
+library(glmnet)
+library(ranger)
+library(pheatmap)
+library(RColorBrewer)
+library(prismr)
+library(piano)
+library(cdsr)
+library(ggthemes)
+library(scales)
+library(GSEABase)
+library(hrbrthemes)
+library(plotly)
+library(ggrepel)
+library(gridExtra)
+library(cowplot)
+library(rapportools)
+library(data.table)
+library(ggExtra)
+library(wesanderson)
+library(ggpubr)
+```

@@ -1,0 +1,157 @@
+---
+title: "Urn Confidence Questionnaire Factor Analysis"
+author: "Vickie"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = 'center', fig.width = 10, fig.height = 7)
+```
+
+```{r}
+library(ggplot2) # for plotting graphs
+library(tidyverse)
+library(data.table)
+library(gridExtra) # for ploting graphs
+library(lme4) # for linear regression functions
+library(plyr) # for collapse-and-mean functions like ddply
+library(psych)
+library(GPArotation)
+library(paran)
+library(reshape)
+library(polycor)
+library(nFactors)
+library(R.matlab)
+library(reshape)
+library(useful)
+library(magrittr)
+options(scipen = 999) # to display variable quantities in decimals (not in scientific notation format)
+```
+
+## Read in data
+```{r}
+setwd("/Users/vwang/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Data/")
+q_raw = read_csv("Urn+TaskNum.csv")
+q_raw = q_raw[-c(1,2),]
+```
+
+## Check questions
+```{r}
+check_questions = c("SSMS43_38", "EAT26_18")
+check_answers = c("Yes", "Always")
+check_answers_numerical = c("2", "6")
+
+q_raw %>% dplyr::select(check_questions)
+
+q_raw %<>% dplyr::select(-check_questions)
+```
+
+## Remove first columns
+```{r}
+q_raw %<>% dplyr::select("Q18", contains("_")) %>% column_to_rownames(var = "Q18") %>% sapply(as.numeric) %>% as.data.frame()
+```
+
+
+```{r}
+DASS_raw = q_raw %>% dplyr::select(contains("DASS")) #21
+NCS_raw = q_raw %>% dplyr::select(contains("NCS")) #18
+SSMS_raw = q_raw %>% dplyr::select(contains("SSMS")) #43
+UPPS_raw = q_raw %>% dplyr::select(contains("UPPS")) #20
+AUDIT_raw = q_raw %>% dplyr::select(contains("AUDIT")) #10
+LSAS_fa_raw = q_raw %>% dplyr::select(contains("LSAS24#1")) #24
+LSAS_av_raw = q_raw %>% dplyr::select(contains("LSAS24#2")) #24
+OCIR_raw = q_raw %>% dplyr::select(contains("OCI-R")) #18
+AES_raw = q_raw %>% dplyr::select(contains("AES"), contains("Q14")) #18
+EAT_raw = q_raw %>% dplyr::select(contains("EAT")) #26
+```
+
+```{r}
+### Higher score more stress, anxiety, depression
+DASS_stress = DASS_raw[,c(1,6,8,11,12,14,18)] - 1
+DASS_anxiety = DASS_raw[,c(2,4,7,9,15,19,20)] - 1
+DASS_depression = DASS_raw[,c(3,5,10,13,16,17,21)] - 1
+```
+
+```{r}
+### Higher score more into thinking
+reverse_coded_items_NCS = c(3,4,5,7,8,9,12,16,17)
+direction_NCS = rep(1,dim(NCS_raw)[2])
+direction_NCS[reverse_coded_items_NCS] = -1
+
+NCS = sweep(NCS_raw, MARGIN=2, direction_NCS, `*`)
+```
+
+```{r}
+### Higher score more schizotypy
+reverse_coded_items_SSMS = c(26, 27, 28, 30, 31, 34, 37, 39)
+direction_SSMS = rep(1,dim(SSMS_raw)[2])
+direction_SSMS[reverse_coded_items_SSMS] = -1
+add_SSMS = rep(0,dim(SSMS_raw)[2])
+add_SSMS[reverse_coded_items_SSMS] = 3
+
+SSMS = sweep(SSMS_raw, MARGIN=2, direction_SSMS, `*`) %>% sweep(MARGIN=2, add_SSMS, `+`) - 1
+```
+
+```{r}
+### Higher score more impulsive
+reverse_coded_items_UPPS = c(3, 6, 8, 9, 10, 13, 14, 15, 16, 17, 18, 20)
+direction_UPPS = rep(-1,dim(UPPS_raw)[2])
+direction_UPPS[reverse_coded_items_UPPS] = 1
+add_UPPS = rep(5,dim(UPPS_raw)[2])
+add_UPPS[reverse_coded_items_UPPS] = 0
+
+UPPS = sweep(UPPS_raw, MARGIN=2, direction_UPPS, `*`) %>% sweep(MARGIN=2, add_UPPS, `+`)
+```
+
+
+```{r}
+different_coded_items_AUDIT = c(9,10)
+multiply_AUDIT = rep(1,dim(AUDIT_raw)[2])
+multiply_AUDIT[different_coded_items_AUDIT] = 2
+add_AUDIT = rep(-1,dim(AUDIT_raw)[2])
+add_AUDIT[different_coded_items_AUDIT] = -2
+
+AUDIT = sweep(AUDIT_raw, MARGIN=2, multiply_AUDIT, `*`) %>% sweep(MARGIN=2, add_AUDIT, `+`)
+```
+
+```{r}
+LSAS = LSAS_av_raw + LSAS_fa_raw - 2
+```
+
+```{r}
+OCIR = OCIR_raw - 1
+```
+
+```{r}
+reverse_coded_items_AES = c(6,10,11)
+direction_AES = rep(-1,dim(AES_raw)[2])
+direction_AES[reverse_coded_items_AES] = 1
+add_AES = rep(5,dim(AES_raw)[2])
+add_AES[reverse_coded_items_AES] = 0
+
+AES = sweep(AES_raw, MARGIN=2, direction_AES, `*`) %>% sweep(MARGIN=2, add_AES, `+`)
+```
+
+```{r}
+reverse_coded_items_EAT = c(26)
+direction_EAT = rep(1,dim(EAT_raw)[2])
+direction_EAT[reverse_coded_items_EAT] = -1
+add_EAT = rep(-3,dim(EAT_raw)[2])
+add_EAT[reverse_coded_items_EAT] = 4
+
+EAT_raw2 = sweep(EAT_raw, MARGIN=2, direction_EAT, `*`) %>% sweep(MARGIN=2, add_EAT, `+`)
+EAT = EAT_raw2
+EAT[EAT_raw2 < 0] = 0
+```
+

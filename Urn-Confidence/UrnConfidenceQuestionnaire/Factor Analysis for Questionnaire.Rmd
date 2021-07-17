@@ -36,6 +36,8 @@ library(R.matlab)
 library(reshape)
 library(useful)
 library(magrittr)
+library(corrplot)
+library(car)
 options(scipen = 999) # to display variable quantities in decimals (not in scientific notation format)
 ```
 
@@ -44,6 +46,9 @@ options(scipen = 999) # to display variable quantities in decimals (not in scien
 setwd("/Users/vwang/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Data/")
 q_raw = read_csv("Urn+TaskNum.csv")
 q_raw = q_raw[-c(1,2),]
+
+taskData = data.table::fread("subjectmeta.csv")
+combinedData = data.frame()
 ```
 
 ## Check questions
@@ -59,7 +64,8 @@ q_raw %<>% dplyr::select(-check_questions)
 
 ## Remove first columns
 ```{r}
-q_raw %<>% dplyr::select("Q18", contains("_")) %>% column_to_rownames(var = "Q18") %>% sapply(as.numeric) %>% as.data.frame()
+rownames = q_raw$Q18
+q_raw %<>% dplyr::select(contains("_")) %>% sapply(as.numeric) %>% as.data.frame() %>% set_rownames(rownames)
 ```
 
 
@@ -81,6 +87,10 @@ EAT_raw = q_raw %>% dplyr::select(contains("EAT")) #26
 DASS_stress = DASS_raw[,c(1,6,8,11,12,14,18)] - 1
 DASS_anxiety = DASS_raw[,c(2,4,7,9,15,19,20)] - 1
 DASS_depression = DASS_raw[,c(3,5,10,13,16,17,21)] - 1
+
+combinedData <- DASS_stress %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "DASS_stress") %>% rbind(combinedData)
+combinedData <- DASS_anxiety %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "DASS_anxiety") %>% rbind(combinedData)
+combinedData <- DASS_depression %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "DASS_depression") %>% rbind(combinedData)
 ```
 
 ```{r}
@@ -90,6 +100,8 @@ direction_NCS = rep(1,dim(NCS_raw)[2])
 direction_NCS[reverse_coded_items_NCS] = -1
 
 NCS = sweep(NCS_raw, MARGIN=2, direction_NCS, `*`)
+
+combinedData <- NCS %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "NCS") %>% rbind(combinedData)
 ```
 
 ```{r}
@@ -101,6 +113,8 @@ add_SSMS = rep(0,dim(SSMS_raw)[2])
 add_SSMS[reverse_coded_items_SSMS] = 3
 
 SSMS = sweep(SSMS_raw, MARGIN=2, direction_SSMS, `*`) %>% sweep(MARGIN=2, add_SSMS, `+`) - 1
+
+combinedData <- SSMS %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "SSMS") %>% rbind(combinedData)
 ```
 
 ```{r}
@@ -112,6 +126,8 @@ add_UPPS = rep(5,dim(UPPS_raw)[2])
 add_UPPS[reverse_coded_items_UPPS] = 0
 
 UPPS = sweep(UPPS_raw, MARGIN=2, direction_UPPS, `*`) %>% sweep(MARGIN=2, add_UPPS, `+`)
+
+combinedData <- UPPS %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "UPPS") %>% rbind(combinedData)
 ```
 
 
@@ -123,14 +139,20 @@ add_AUDIT = rep(-1,dim(AUDIT_raw)[2])
 add_AUDIT[different_coded_items_AUDIT] = -2
 
 AUDIT = sweep(AUDIT_raw, MARGIN=2, multiply_AUDIT, `*`) %>% sweep(MARGIN=2, add_AUDIT, `+`)
+
+combinedData <- AUDIT %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "AUDIT") %>% rbind(combinedData)
 ```
 
 ```{r}
 LSAS = LSAS_av_raw + LSAS_fa_raw - 2
+
+combinedData <- LSAS %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "LSAS") %>% rbind(combinedData)
 ```
 
 ```{r}
 OCIR = OCIR_raw - 1
+
+combinedData <- OCIR %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "OCIR") %>% rbind(combinedData)
 ```
 
 ```{r}
@@ -141,6 +163,8 @@ add_AES = rep(5,dim(AES_raw)[2])
 add_AES[reverse_coded_items_AES] = 0
 
 AES = sweep(AES_raw, MARGIN=2, direction_AES, `*`) %>% sweep(MARGIN=2, add_AES, `+`)
+
+combinedData <- AES %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "AES") %>% rbind(combinedData)
 ```
 
 ```{r}
@@ -153,5 +177,319 @@ add_EAT[reverse_coded_items_EAT] = 4
 EAT_raw2 = sweep(EAT_raw, MARGIN=2, direction_EAT, `*`) %>% sweep(MARGIN=2, add_EAT, `+`)
 EAT = EAT_raw2
 EAT[EAT_raw2 < 0] = 0
+
+combinedData <- EAT %>% rownames_to_column(var = "subject") %>% reshape2::melt(id = "subject") %>% dplyr::mutate(survey = "EAT") %>% rbind(combinedData)
 ```
+
+```{r}
+add.one <- function(x, na.rm=FALSE) (x + 1)
+
+summedscaledData <- combinedData %>% cast(subject ~ survey, sum) %>% 
+    left_join(taskData, by = c("subject" = "FullSubject")) %>%
+    dplyr::mutate_if(is.numeric, add.one) %>%
+    dplyr::mutate_if(is.numeric, list(ln = log)) %>%
+    dplyr::mutate_if(is.numeric, list(sc = scale))
+qData <- combinedData %>% cast(subject ~ variable)
+```
+
+```{r}
+regAccuracyDemo = lm(Correct_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+regConfidenceDemo = lm(Confidence_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+
+regAccuracyDemo_fig <- data.frame(summary(regAccuracyDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
+regConfidenceDemo_fig <- data.frame(summary(regConfidenceDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+
+
+regDemo_fig <- rbind(regAccuracyDemo_fig,regConfidenceDemo_fig)
+regDemo_fig <- regDemo_fig[regDemo_fig$Type!='GenderMale',]
+regDemo_fig$Type[regDemo_fig$Type=='NCS_ln_sc']<-'IQ'
+regDemo_fig$Type[regDemo_fig$Type=='Age_sc']<-'Age'
+regDemo_fig$Label<-factor(regDemo_fig$Label, levels=c("Accuracy",'Confidence'))
+
+
+# Plot: Task performance + Metacognition ~ Demographics
+demoFig <- ggplot(data = regDemo_fig, aes(x = Label, y = Estimate, group=Type)) + 
+  geom_bar(aes(fill = Type), color="black",size=1.2,stat="identity", position = "dodge",width=0.6) +
+  geom_errorbar(aes(ymin=regDemo_fig$Estimate-regDemo_fig$Std..Error, ymax=regDemo_fig$Estimate+regDemo_fig$Std..Error),colour="black", width=.3, size=1.2, position=position_dodge(.6)) +
+  labs(title=" ", x=" ", y = "Regression Coefficient") + geom_hline(yintercept=0,size=1) + theme_classic() + 
+  theme(axis.title.y = element_text(size = rel(2.5), angle = 90, margin=margin(0,20,0,0)), axis.title.x = element_text(size = rel(3), angle = 00, margin=margin(20,0,0,0))) +
+  theme(plot.title = element_text(size = rel(3), angle = 00)) +
+  theme(axis.text.x = element_text(angle = 00, size=25), axis.text.y = element_text(angle = 00, size=25)) +
+  theme(legend.text = element_text(size = 20), legend.title = element_blank())+#, legend.position="none") +
+  theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
+  theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_line(size=(1.5)), axis.ticks.length=unit(0.4, "cm")) +
+  scale_fill_manual(values=c("#ffffff", "#555555"))#+ ylim(-0.3,0.4)
+
+demoFig
+```
+
+```{r}
+generic.model <- function(DV, df) {
+  plot1 <- matrix(NA,10,4)
+  modelString = paste(DV, "~ DASS_stress_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[1,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ DASS_anxiety_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[2,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ DASS_depression_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[3,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ SSMS_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[4,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ UPPS_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[5,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ AUDIT_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[6,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ LSAS_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[7,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ OCIR_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[8,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ AES_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[9,] <- summary(mod1)$coefficients[2,1:4]
+  
+  modelString = paste(DV, "~ EAT_ln_sc + Age_sc + Gender")
+  mod1 <- lm(modelString, df)
+  plot1[10,] <- summary(mod1)$coefficients[2,1:4]
+  
+  plot1 <- data.frame(plot1)
+  names(plot1) <- c("Estimate", "Std..Error", "t value", "P value")
+  row.names(plot1) <- c("DASS Stress", "DASS Anxiety", "DASS Depression", "Schizotypy", "Impulsivity", "Alcoholism", "Social Anxiety", "OCD", "Apathy", "Eating Disorders")
+  
+  return(plot1)
+}
+```
+
+
+```{r}
+# generic.model <- function(DV, df) {
+#   plot1 <- matrix(NA,10,4)
+#   modelString = paste(DV, "~ DASS_stress_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[1,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ DASS_anxiety_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[2,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ DASS_depression_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[3,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ SSMS_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[4,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ UPPS_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[5,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ AUDIT_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[6,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ LSAS_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[7,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ OCIR_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[8,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ AES_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[9,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   modelString = paste(DV, "~ EAT_ln_sc + NCS_ln_sc + Age_sc + Gender")
+#   mod1 <- lm(modelString, df)
+#   plot1[10,] <- summary(mod1)$coefficients[2,1:4]
+#   
+#   plot1 <- data.frame(plot1)
+#   names(plot1) <- c("Estimate", "Std..Error", "t value", "P value")
+#   row.names(plot1) <- c("DASS Stress", "DASS Anxiety", "DASS Depression", "Schizotypy", "Impulsivity", "Alcoholism", "Social Anxiety", "OCD", "Apathy", "Eating Disorders")
+#   
+#   return(plot1)
+# }
+
+#Linear regressions for 
+regAccuracyTrait <- generic.model("Correct_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
+regConfidenceTrait <- generic.model("Confidence_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+
+
+regTrait_fig<-rbind(regAccuracyTrait,regConfidenceTrait)
+regTrait_fig$Label<-factor(regTrait_fig$Label, levels=c("Accuracy",'Confidence'))
+regTrait_fig$Type<-factor(regTrait_fig$Type, levels=c("DASS Stress", "DASS Anxiety", "DASS Depression", "Schizotypy", "Impulsivity", "Alcoholism", "Social Anxiety", "OCD", "Apathy", "Eating Disorders"))
+
+# Plot: Task performance + Metacognition ~ Symptom Scores
+regTrait <- ggplot(data = regTrait_fig, aes(x = Label, y = Estimate, group=Type)) +       
+  geom_bar(aes(fill = Type), colour="black",size=1.2,stat="identity", position = "dodge",width=0.8) +
+  geom_errorbar(aes(ymin=regTrait_fig$Estimate-regTrait_fig$Std..Error, ymax=regTrait_fig$Estimate+regTrait_fig$Std..Error),colour="black", width=0.3, size=1.2, position=position_dodge(.8)) +
+  geom_hline(yintercept=0,size=1) + theme_classic() + labs(title=" ", x=" ", y = "Regression Coefficient") +
+  theme(axis.title.y = element_text(size = rel(2.5), angle = 90, margin=margin(0,20,0,0)),axis.title.x = element_text(size = rel(3), angle = 00, margin=margin(20,0,0,0))) +
+  theme(plot.title = element_text(size = rel(3), angle = 00),legend.text = element_text(size = 20),legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 00, size=25),axis.text.y = element_text(angle = 00, size=25))+ scale_x_discrete(expand = c(0,0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 1.5),axis.line.y = element_line(color="black", size = 1.5)) +
+  theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_line(size=(1.5)),axis.ticks.length=unit(0.4, "cm")) +
+  scale_fill_manual(values=c("#999999", "#377db8","#e31a1c","#984ea3","#4daf4a","#f781bf",'#ffff33','#ff7f00','#a65628','#ffffff'))#+ ylim(-0.3,0.4)
+```
+
+
+```{r}
+numrep = 1
+numsub = 5
+simqData <- do.call("rbind", replicate(numrep, qData, simplify = FALSE))
+simqData <- data.frame(lapply(simqData[,2:ncol(simqData)], jitter)) %>% dplyr::select(-contains("NCS"))
+simqSubjects <- paste0(rep(1:numrep, each = numsub), "_", replicate(numrep,qData$subject))
+het.mat <- hetcor(simqData)$cor
+```
+
+```{r}
+nCng(het.mat, cor = TRUE, model = "components", details = TRUE)
+res <- nCng(het.mat, cor = TRUE, model = "components", details = TRUE)
+
+plotuScree(simqData, main=paste(res$nFactors,
+                            " factors retained by the CNG procedure",
+                            sep=""))
+```
+
+```{r}
+fa <- fa(r = het.mat, nfactors = 5, n.obs = nrow(simqData), rotate = "oblimin", fm="ml", scores="regression")
+fa.scores <- factor.scores(x=simqData, f=fa)
+scores = data.frame("subject"=qData$subject, fa.scores$scores)
+loadings <- fa$loadings
+
+factorDataV = merge(summedscaledData, scores, by.x=c("subject"), by.y=c("subject"))
+```
+
+```{r}
+# linear regressions
+regAccuracyFactor = lm(Correct_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV) # accuracy
+regConfidenceFactor = lm(Confidence_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV) # mean confidence
+
+# extract coefficients into dataframes
+regAccuracyFactor_fig <- data.frame(summary(regAccuracyFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
+regConfidenceFactor_fig <- data.frame(summary(regConfidenceFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+
+regFactor_fig <- rbind(regAccuracyFactor_fig,regConfidenceFactor_fig)
+regFactor_fig <- regFactor_fig[regFactor_fig$Type!='GenderMale',]
+#regFactor_fig$Type[regFactor_fig$Type=='iq.sc']<-'IQ'
+#regFactor_fig$Type[regFactor_fig$Type=='age.sc']<-'Age'
+regFactor_fig$Label<-factor(regFactor_fig$Label, levels=c("Accuracy",'Confidence'))
+
+
+# Plot: Task performance + Metacognition ~ Factors
+factorFig <- ggplot(data = regFactor_fig, aes(x = Label, y = Estimate, group=Type)) +       
+  geom_bar(aes(fill = Type), colour="black",size=1.2,stat="identity", position = "dodge",width=0.8) +
+  geom_errorbar(aes(ymin=regFactor_fig$Estimate-regFactor_fig$Std..Error, ymax=regFactor_fig$Estimate+regFactor_fig$Std..Error),colour="black", width=0.3, size=1.2, position=position_dodge(.8))+
+  geom_hline(yintercept=0,size=1) + theme_classic() + labs(title=" ", x=" ", y = "Regression Coefficient") +
+  theme(axis.title.y = element_text(size = rel(2.5), angle = 90, margin=margin(0,20,0,0)), axis.title.x = element_text(size = rel(3), angle = 00, margin=margin(20,0,0,0)))+
+  theme(plot.title = element_text(size = rel(3), angle = 00),legend.text = element_text(size = 20),legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 00, size=25), axis.text.y = element_text(angle = 00, size=25))+ scale_x_discrete(expand = c(0,0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
+  theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_line(size=(1.5)), axis.ticks.length=unit(0.4, "cm")) #+
+  #scale_fill_manual(values=c("#8dd3c7", "#ffffbc","#bebada")) + theme(legend.position="none") #+ ylim(-0.3,0.3)
+```
+
+
+
+```{r}
+describe(as.matrix(simqData)) %>% head
+dim(simqData)
+
+collapsedqData <- summedscaledData[,1:12] 
+describe(as.matrix(collapsedqData)) 
+dim(collapsedqData)
+```
+
+```{r}
+dat <- collapsedqData[,-1]
+dat <- simqData[,-1]
+corner(dat)
+
+datMat <- cor(dat)
+corrplot(datMat, method = "number")
+```
+
+```{r}
+KMO(r = cor(dat))
+```
+
+```{r}
+cortest.bartlett(dat)
+det(cor(dat))
+```
+
+
+
+```{r}
+cbind(dplyr::select(factorDataV,contains("ML")),factorDataV[,c(2:12)]) %>% cor
+```
+
+
+```{r}
+question_survey_map <- combinedData[,c('survey','variable')] %>% 
+    dplyr::mutate(variable = str_replace_all(variable, "-|#| ", ".")) %>%
+    distinct()# %>%
+    #dplyr::mutate(variable = ifelse(variable == "Q14", "AES", variable)) %>%
+
+ld <- loadings[,] %>% melt() %>% dplyr::rename("variable" = Var1, "factor" = Var2) %>% left_join(question_survey_map, by = "variable") 
+```
+
+```{r}
+colorpalV <- data.table::fread("vickiecolorlist.csv") %>% as.data.frame()
+surveycolors <- colorpalV$colorhex[1:12]
+names(surveycolors) <- ld$survey %>% unique() %>% sort() %>% append("DASS")
+f = "ML1"
+ld_factor <- ld %>% #dplyr::filter(factor == f) %>%
+    dplyr::mutate(survey = factor(survey,levels = unique(.$survey), ordered = T)) %>%
+    dplyr::arrange(survey) %>%
+    group_by(factor) %>%
+    dplyr::mutate(ix = 1:198)
+
+#pdf("~/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Figs/factorloadings.pdf", width = 11, height = 8)
+ld_factor %>%
+    ggplot() +       
+    geom_bar(aes(x = ix, y = value, fill = survey), size=1.2,stat="identity", position = "dodge",width=0.8) +
+    geom_hline(yintercept=0,size=1) + theme_classic() + labs(title=" ", x=" ", y = "Factor Loading") +
+    theme(axis.title.y = element_text(size = rel(1.5), angle = 90, margin=margin(0,20,0,0)), axis.title.x = element_text(size = rel(1.5), angle = 00, margin=margin(20,0,0,0))) +
+    theme(plot.title = element_text(size = rel(3), angle = 00),legend.text = element_text(size = rel(1)),legend.title = element_blank()) +
+    theme(axis.text.x = element_blank(), axis.text.y = element_text(angle = 00, size=18))+ scale_x_discrete(expand = c(0,0.5)) +
+    theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
+    theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_blank()) +
+    scale_fill_manual(values = surveycolors) +
+    facet_wrap(~factor, ncol = 1, strip.position = "right") + theme(text = element_text(size = 18)) 
+#dev.off()
+
+ld %>% #dplyr::filter(factor == f) %>%
+    dplyr::mutate(survey = word(survey, sep = "_")) %>%
+    dplyr::mutate(survey = factor(survey,levels = unique(.$survey), ordered = T)) %>%
+    dplyr::arrange(survey) %>%
+    group_by(factor, survey) %>%
+    dplyr::summarise(total = sum(value)) %>% 
+    ggplot() +       
+    geom_bar(aes(x = survey, y = total, fill = survey), size=1.2,stat="identity", position = "dodge",width=0.8) +
+    geom_hline(yintercept=0,size=1) + theme_classic() + labs(title=" ", x=" ", y = "Summed Factor Loading") +
+    theme(axis.title.y = element_text(size = rel(1.5), angle = 90, margin=margin(0,20,0,0)), axis.title.x = element_text(size = rel(1.5), angle = 00, margin=margin(20,0,0,0))) +
+    theme(plot.title = element_text(size = rel(3), angle = 00),legend.text = element_text(size = rel(1)),legend.title = element_blank()) +
+    theme(axis.text.x = element_blank(), axis.text.y = element_text(angle = 00, size=18))+ scale_x_discrete(expand = c(0,0.5)) +
+    theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
+    theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_blank()) +
+    scale_fill_manual(values = surveycolors) +
+    facet_wrap(~factor, ncol = 1, strip.position = "right") + theme(text = element_text(size = 18)) 
+```
+
 

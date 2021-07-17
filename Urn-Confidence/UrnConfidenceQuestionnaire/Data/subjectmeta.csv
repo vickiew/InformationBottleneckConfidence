@@ -1,0 +1,7 @@
+Subject,FullSubject,Gender,Age,Ethnicity,Correct,Confidence
+5ebd,5ebd676b0ee54a0379a10188,Male,20,White,0.626,0.998
+5e9d,5e9d28cb23881d258d89cee9,Male,24,Hispanic or Latino,0.604,0.557
+5da7,5da7d64e077d260014a456f0,Female,22,White,0.664,0.709
+60ce,60ce976010390c070c3d2e1e,Male,30,White,0.658,0.473
+5f52,5f52237276d614488e847c1b,Male,41,White,0.653,0.728
+60c8,60c86505e26bc5e0e2e725eb,Female,26,White,0.644,0.465

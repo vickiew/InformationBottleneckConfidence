@@ -372,7 +372,7 @@ def get_bootstrapped_samples_confo(dat,wips,nboot):
 
 def add_noise(x, level):
     n = 1
-    np.random.seed(17)
+    #np.random.seed(17)
     noise = np.random.binomial(n, 1-level, len(x))
     return(np.where(x == noise,1,0))
 

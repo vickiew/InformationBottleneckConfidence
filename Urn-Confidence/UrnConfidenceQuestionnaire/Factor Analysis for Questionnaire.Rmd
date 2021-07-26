@@ -49,6 +49,7 @@ q_raw = q_raw[-c(1,2),]
 
 taskData = data.table::fread("subjectmeta.csv")
 combinedData = data.frame()
+IBtable = data.table::fread("IBtable.csv")
 ```
 
 ## Check questions
@@ -186,25 +187,40 @@ add.one <- function(x, na.rm=FALSE) (x + 1)
 
 summedscaledData <- combinedData %>% cast(subject ~ survey, sum) %>% 
     left_join(taskData, by = c("subject" = "FullSubject")) %>%
+    left_join(IBtable) %>%
     dplyr::mutate_if(is.numeric, add.one) %>%
     dplyr::mutate_if(is.numeric, list(ln = log)) %>%
-    dplyr::mutate_if(is.numeric, list(sc = scale))
+    dplyr::mutate_if(is.numeric, list(sc = scale)) 
 qData <- combinedData %>% cast(subject ~ variable)
 ```
 
 ```{r}
 regAccuracyDemo = lm(Correct_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
 regConfidenceDemo = lm(Confidence_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+regIBipDemo = lm(Ipast_task_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+regIBdtbDemo = lm(DTB_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+regIBifratioDemo = lm(ratio_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
+regIBifdiffDemo = lm(diff_sc ~ NCS_ln_sc + Age_sc + Gender, summedscaledData) 
 
 regAccuracyDemo_fig <- data.frame(summary(regAccuracyDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
 regConfidenceDemo_fig <- data.frame(summary(regConfidenceDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+regIBipDemo_fig <- data.frame(summary(regIBipDemo)$coefficients[2:4,1:4]) %>% 
+    rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ip")
+regIBdtbDemo_fig <- data.frame(summary(regIBdtbDemo)$coefficients[2:4,1:4]) %>% 
+    rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "DTB")
+regIBifratioDemo_fig <- data.frame(summary(regIBifratioDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifratio")
+regIBifdiffDemo_fig <- data.frame(summary(regIBifdiffDemo)$coefficients[2:4,1:4]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifdiff")
 
 
-regDemo_fig <- rbind(regAccuracyDemo_fig,regConfidenceDemo_fig)
+regDemo_fig <- rbind(regAccuracyDemo_fig,regConfidenceDemo_fig,
+                     regIBipDemo_fig,regIBdtbDemo_fig,
+                     regIBifratioDemo_fig,regIBifdiffDemo_fig)
 regDemo_fig <- regDemo_fig[regDemo_fig$Type!='GenderMale',]
 regDemo_fig$Type[regDemo_fig$Type=='NCS_ln_sc']<-'IQ'
 regDemo_fig$Type[regDemo_fig$Type=='Age_sc']<-'Age'
-regDemo_fig$Label<-factor(regDemo_fig$Label, levels=c("Accuracy",'Confidence'))
+regDemo_fig$Label<-factor(regDemo_fig$Label, levels=c("Accuracy",'Confidence',
+                                                      "Ip","DTB",
+                                                      "Ifratio","Ifdiff"))
 
 
 # Plot: Task performance + Metacognition ~ Demographics
@@ -328,10 +344,18 @@ generic.model <- function(DV, df) {
 #Linear regressions for 
 regAccuracyTrait <- generic.model("Correct_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
 regConfidenceTrait <- generic.model("Confidence_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+regIBipTrait <- generic.model("Ipast_task_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ip")
+regIBdtbTrait <- generic.model("DTB_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "DTB")
+regIBifratioTrait <- generic.model("ratio_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifratio")
+regIBifdiffTrait <- generic.model("diff_sc", summedscaledData) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifdiff")
 
 
-regTrait_fig<-rbind(regAccuracyTrait,regConfidenceTrait)
-regTrait_fig$Label<-factor(regTrait_fig$Label, levels=c("Accuracy",'Confidence'))
+regTrait_fig<-rbind(regAccuracyTrait,regConfidenceTrait,
+                    regIBipTrait,regIBdtbTrait,
+                    regIBifratioTrait,regIBifdiffTrait)
+regTrait_fig$Label<-factor(regTrait_fig$Label, levels=c("Accuracy",'Confidence',
+                                                      "Ip","DTB",
+                                                      "Ifratio","Ifdiff"))
 regTrait_fig$Type<-factor(regTrait_fig$Type, levels=c("DASS Stress", "DASS Anxiety", "DASS Depression", "Schizotypy", "Impulsivity", "Alcoholism", "Social Anxiety", "OCD", "Apathy", "Eating Disorders"))
 
 # Plot: Task performance + Metacognition ~ Symptom Scores
@@ -358,12 +382,14 @@ het.mat <- hetcor(simqData)$cor
 ```
 
 ```{r}
-nCng(het.mat, cor = TRUE, model = "components", details = TRUE)
+nCng(het.mat1, cor = TRUE, model = "components", details = TRUE)
 res <- nCng(het.mat, cor = TRUE, model = "components", details = TRUE)
 
+pdf("~/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Figs/CNG.pdf", width = 5, height = 5)
 plotuScree(simqData, main=paste(res$nFactors,
                             " factors retained by the CNG procedure",
                             sep=""))
+dev.off()
 ```
 
 ```{r}
@@ -378,17 +404,29 @@ factorDataV = merge(summedscaledData, scores, by.x=c("subject"), by.y=c("subject
 ```{r}
 # linear regressions
 regAccuracyFactor = lm(Correct_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV) # accuracy
-regConfidenceFactor = lm(Confidence_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV) # mean confidence
+regConfidenceFactor = lm(Confidence_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV)# mean confidence
+regIBifFactor = lm(Ipast_task_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV) 
+regIBdtbFactor = lm(DTB_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV)
+regIBifratioFactor = lm(ratio_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV)
+regIBifdiffFactor = lm(diff_sc ~ ML1 + ML2 + ML3 + ML4 + ML5 + Age_sc + Gender,factorDataV)
 
 # extract coefficients into dataframes
 regAccuracyFactor_fig <- data.frame(summary(regAccuracyFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Accuracy")
 regConfidenceFactor_fig <- data.frame(summary(regConfidenceFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Confidence")
+regIBifFactor_fig <- data.frame(summary(regIBifFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ip")
+regIBdtbFactor_fig <- data.frame(summary(regIBdtbFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "DTB")
+regIBifratioFactor_fig <- data.frame(summary(regIBifratioFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifratio")
+regIBifdiffFactor_fig <- data.frame(summary(regIBifdiffFactor)$coefficients[-1,]) %>% rownames_to_column(var = "Type") %>% dplyr::mutate(Label = "Ifdiff")
 
-regFactor_fig <- rbind(regAccuracyFactor_fig,regConfidenceFactor_fig)
+regFactor_fig <- rbind(regAccuracyFactor_fig,regConfidenceFactor_fig,
+                       regIBifFactor_fig,regIBdtbFactor_fig,
+                       regIBifratioFactor_fig,regIBifdiffFactor_fig)
 regFactor_fig <- regFactor_fig[regFactor_fig$Type!='GenderMale',]
 #regFactor_fig$Type[regFactor_fig$Type=='iq.sc']<-'IQ'
-#regFactor_fig$Type[regFactor_fig$Type=='age.sc']<-'Age'
-regFactor_fig$Label<-factor(regFactor_fig$Label, levels=c("Accuracy",'Confidence'))
+regFactor_fig$Type[regFactor_fig$Type=='age.sc']<-'Age'
+regFactor_fig$Label<-factor(regFactor_fig$Label, levels=c("Accuracy",'Confidence',
+                                                      "Ip","DTB",
+                                                      "Ifratio","Ifdiff"))
 
 
 # Plot: Task performance + Metacognition ~ Factors
@@ -402,6 +440,8 @@ factorFig <- ggplot(data = regFactor_fig, aes(x = Label, y = Estimate, group=Typ
   theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
   theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_line(size=(1.5)), axis.ticks.length=unit(0.4, "cm")) #+
   #scale_fill_manual(values=c("#8dd3c7", "#ffffbc","#bebada")) + theme(legend.position="none") #+ ylim(-0.3,0.3)
+
+factorFig
 ```
 
 
@@ -460,14 +500,14 @@ ld_factor <- ld %>% #dplyr::filter(factor == f) %>%
     group_by(factor) %>%
     dplyr::mutate(ix = 1:198)
 
-#pdf("~/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Figs/factorloadings.pdf", width = 11, height = 8)
+#pdf("~/Documents/PennMed/Gold Lab/Preregistration/Urn-Confidence/UrnConfidenceQuestionnaire/Figs/factorloadings_pilot.pdf", width = 11, height = 8)
 ld_factor %>%
     ggplot() +       
     geom_bar(aes(x = ix, y = value, fill = survey), size=1.2,stat="identity", position = "dodge",width=0.8) +
     geom_hline(yintercept=0,size=1) + theme_classic() + labs(title=" ", x=" ", y = "Factor Loading") +
     theme(axis.title.y = element_text(size = rel(1.5), angle = 90, margin=margin(0,20,0,0)), axis.title.x = element_text(size = rel(1.5), angle = 00, margin=margin(20,0,0,0))) +
     theme(plot.title = element_text(size = rel(3), angle = 00),legend.text = element_text(size = rel(1)),legend.title = element_blank()) +
-    theme(axis.text.x = element_blank(), axis.text.y = element_text(angle = 00, size=18))+ scale_x_discrete(expand = c(0,0.5)) +
+    theme(axis.text.x = element_blank(), axis.text.y = element_text(angle = 00))+ scale_x_discrete(expand = c(0,0.5)) +
     theme(axis.line.x = element_line(color="black", size = 1.2), axis.line.y = element_line(color="black", size = 1.2)) +
     theme(axis.ticks.y=element_line(size=(1.5)), axis.ticks.x=element_blank()) +
     scale_fill_manual(values = surveycolors) +

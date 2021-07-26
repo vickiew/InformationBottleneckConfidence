@@ -3,10 +3,10 @@
 
 # # Helper functions for Information Bottleneck with Confidence
 
-# In[13]:
+# In[2]:
 
 
-# !jupyter nbconvert --to script smfile.ipynb
+#!jupyter nbconvert --to script smfile.ipynb
 
 
 # In[1]:
@@ -157,7 +157,7 @@ def get_windowed_mi(x_array,z,nw,confid = 0):
 # In[7]:
 
 
-def get_windowed_bound(x_array,z,w,mb=50,nb=2000,p=8):
+def get_windowed_bound(x_array,z,w,mb=50,nb=2000,p=8, maxbeta = 5):
     '''
     Function that computes the information bottleneck bound between two discrete variables
     Input:
@@ -174,11 +174,11 @@ def get_windowed_bound(x_array,z,w,mb=50,nb=2000,p=8):
     xw,zw = get_windowed_x_v(['0' + h[-w:] for h in x_array],z,w=w)
     
     # Compute the information bottleneck using EMBO for the window size w specified above
-    ipw, ifw, _, _= InformationBottleneck(xw, zw, window_size_x=1, window_size_y=1).get_bottleneck()
+    ipw, ifw, _, _= InformationBottleneck(xw, zw, window_size_x=1, window_size_y=1, maxbeta = maxbeta, numbeta=6*maxbeta).get_bottleneck()
 
     # Compute the information bottleneck using EMBO for the window size w specified above
     x1b,z1b = get_windowed_x_v(['0' + h[-1:] for h in x_array],z,w=1)
-    ip1b, if1b, _, _ = InformationBottleneck(x1b, z1b, window_size_x=1, window_size_y=1).get_bottleneck()   
+    ip1b, if1b, _, _ = InformationBottleneck(x1b, z1b, window_size_x=1, window_size_y=1, maxbeta = maxbeta, numbeta=6*maxbeta).get_bottleneck()   
     
     # Return informtion bottleneck
     return((ipw,ifw,ip1b,if1b))
@@ -367,7 +367,7 @@ def get_bootstrapped_samples_confo(dat,wips,nboot):
     return(ip_boot_mi,if_boot_mi)
 
 
-# In[ ]:
+# In[1]:
 
 
 def add_noise(x, level):

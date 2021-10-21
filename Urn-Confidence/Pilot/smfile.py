@@ -3,7 +3,7 @@
 
 # # Helper functions for Information Bottleneck with Confidence
 
-# In[2]:
+# In[3]:
 
 
 #!jupyter nbconvert --to script smfile.ipynb
@@ -365,6 +365,25 @@ def get_bootstrapped_samples_confo(dat,wips,nboot):
             if_boot_mi[sub][boot] = ut.mutual_inf_nsb(r[idx],z[idx],[2,2])
     # Return dictionaries of Ipast and Ifuture distributions
     return(ip_boot_mi,if_boot_mi)
+
+
+# In[ ]:
+
+
+def DTB(seq,ipast,ifuture,ip_fullbound = [],if_fullbound = []):
+    ''' 
+    Function to calculate vertical distance from the bound between an empirical IB and participant predictive info
+    ipast: participant ipast (uncorrected)
+    ifuture: participant ifuture (uncorrected)
+    
+    Returns participant ifuture minus the empirical bound (more negative = farther away from the bound)
+    '''
+    if len(ip_fullbound) == 0: ip_fullbound,if_fullbound,_,_ = sm.get_windowed_bound(seq['History'],seq['Jar'],6,maxbeta = 7)
+    ind = np.argwhere(np.array(ip_fullbound) > ipast)[0][0]
+    slp = (if_fullbound[ind]-if_fullbound[ind-1])/(ip_fullbound[ind]-ip_fullbound[ind-1])
+    intercept = if_fullbound[ind]-(slp*ip_fullbound[ind])
+    #Return distance between participant Ifuture and interpolated bound
+    return ifuture - ((ipast*slp)+intercept)
 
 
 # In[1]:

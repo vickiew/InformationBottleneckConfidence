@@ -1,0 +1,19 @@
+index,FullSubject,Subject,Gender,Age,Ethnicity,Correct,Confidence
+0,5c102d91e32f860001651a93,5c102d,Male,22,Hispanic or Latino,0.644,0.674
+1,60fd79cadc8d0e15f1f85689,60fd79,Female,21,White,0.64,0.683
+2,60fe3a75817c3792ea847c8e,60fe3a,Female,27,White,0.643,0.653
+4,5ea98db52f7b330a05f2a33b,5ea98d,Female,19,Other,0.636,0.299
+5,60fee335efe61e35ac985549,60fee3,Female,20,White,0.614,0.642
+6,60b003ab98fa325744ae5bfc,60b003,Male,20,White,0.627,0.888
+7,5eb5123206340e38f179de1b,5eb512,Male,20,White,0.642,0.682
+8,60fdbf3d482bb856698fe018,60fdbf,Female,21,White,0.656,0.619
+9,5fd41bf508717e1833d8aed7,5fd41b,Male,26,White,0.647,0.531
+10,60fdd1d643ddeccb4c6e5200,60fdd1,Female,19,White,0.649,0.576
+11,5cd6bc4604748d000119f0a7,5cd6bc,Female,25,White,0.611,0.766
+12,54a7516dfdf99b7cd759d22b,54a751,Female,46,Black or African American,0.645,0.546
+13,5e8b4c59a70b7700081f5bff,5e8b4c,Female,23,White,0.591,0.898
+14,5ff1ca015ce3ae12f36ea637,5ff1ca,Male,19,White,0.617,0.684
+16,60256d8ad9b88a0cb709e65a,60256d,Male,23,White,0.641,0.887
+17,60a44015d0ff9f3d81a1a1c8,60a440,Female,18,White,0.63,0.777
+18,60f8790908d492b82b505dc3,60f879,Do Not Wish To Say,18,White,0.654,0.562
+19,5eebcc4620cb9a33cd0df72d,5eebcc,Male,21,White,0.638,0.65
